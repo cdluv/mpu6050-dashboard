@@ -5,8 +5,6 @@
 #ifndef IMU_SPY_H
 #define IMU_SPY_H
 
-
-
 #include <Arduino.h>
 #include "imu_spy.h"
 

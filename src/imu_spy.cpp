@@ -11,7 +11,7 @@ static uint8_t fifoBuffer[1024] = {0};
 static int doDumpFifoBuffer = 0;
 static int sampleRates[] ={4, 5, 10, 20, 50, 100, 125, 200, 250, 500,1000};
 static int sampleRate = SAMPLE_RATE;
-static uint16_t fifoCount = 0;
+static uint16_t fifo_count = 0;
 
 void setSampleRate(int sample_rate);
 
@@ -174,8 +174,8 @@ void writeRegister(uint8_t reg, uint8_t value) {
 
 
 uint16_t getFifoCount() {
-    fifoCount = readTwoBytes(0x72); // Read the FIFO count
-    return fifoCount;
+    fifo_count = readTwoBytes(0x72); // Read the FIFO count
+    return fifo_count;
 }
 
 struct OHLC {
@@ -233,22 +233,17 @@ void printOHLCChart(const uint8_t *buf, size_t len, int row_num, int column) {
 
         Serial.printf(TEXT_RESET
                       "%-5s | L=%6d O=%6d C=%6d H=%6d | ",
-                      labels[ch], o.low, o.first, o.last, o.high //, pf, pe, ph, pl
+                      labels[ch], o.low, o.first, o.last, o.high
         );
 
         for (int x = 0; x <= WIDTH; ++x) {
             char c =
-                    x == pf && x == pe
-                        ? '*'
-                        : x == pf
-                              ? 'F'
-                              : x == pe
-                                    ? 'L'
-                                    : x < pl
-                                          ? ' '
-                                          : x > ph
-                                                ? ' '
-                                                : '-';
+                x == pf && x == pe ? '*'
+              : x == pf ? 'F'
+              : x == pe ? 'L'
+              : x < pl  ? ' '
+              : x > ph  ? ' '
+              : '-';
             Serial.print(c);
         }
         Serial.println("|" ERASE_EOL);
@@ -267,13 +262,13 @@ int dumpFifoBuffer(int row_num) {
 
     // Check if FIFO buffer is full, or about to overflow
     if (getFifoCount() >= 1000) {
-        Serial.printf("FIFO buffer overflow %d. Resetting...", fifoCount);
+        Serial.printf("FIFO buffer overflow %d. Resetting...", fifo_count);
         writeRegister(0x6A, 0x04); // Reset FIFO
         writeRegister(0x6A, 0x40); // Re-enable FIFO
 
         // read imu int status
-        uint8_t intStatus = readTwoBytes(0x3A);
-        Serial.printf("INT STATUS: %02X" TEXT_RESET ERASE_EOL "\n", intStatus);
+        uint8_t int_status = readTwoBytes(0x3A);
+        Serial.printf("INT STATUS: %02X" TEXT_RESET ERASE_EOL "\n", int_status);
         // Wait a bit then process the buffer
         //delay(ms_per_buffer - FIFO_GRACE_TIME_MS );
 
@@ -281,20 +276,24 @@ int dumpFifoBuffer(int row_num) {
     }
 
     // Determine the delay time to wait according to SAMPLE_RATE, current FiFo buffer size(bytes) before FIFO exceeds 400 bytes
-    double time_used_in_buffer = fifoCount / 14 * ms_per_packet;
-    int packets_in_buffer = fifoCount / 14;
+    double time_used_in_buffer = fifo_count / 14 * ms_per_packet;
+    int packets_in_buffer = fifo_count / 14;
     int packets_left = packets_per_buffer - packets_in_buffer - FIFO_GRACE_TIME_MS / ms_per_packet;
 
-    double timeRemaining = max(0.0, ms_per_buffer - time_used_in_buffer - FIFO_GRACE_TIME_MS);
-    double expected_fifoCount = (time_used_in_buffer + timeRemaining) * 14 / ms_per_packet;
+    double fifo_time_remaining = max(0.0, ms_per_buffer - time_used_in_buffer - FIFO_GRACE_TIME_MS);
+    double expected_fifoCount = (time_used_in_buffer + fifo_time_remaining) * 14 / ms_per_packet;
 
     Serial.printf(TEXT_RESET "FIFO buffer: %d bytes, (%d/%d) used/remaining packets, %d ms used, %d ms left, buffer capacity ms = %d ",
-                  fifoCount, packets_in_buffer, packets_left , (int) time_used_in_buffer, (int) timeRemaining,  ms_per_buffer);
+                  fifo_count, packets_in_buffer, packets_left , (int) time_used_in_buffer, (int) fifo_time_remaining,  ms_per_buffer);
+
+    if (fifo_time_remaining > 200) {
+//        return 0;
+    }
 
     //delay((int)timeRemaining);
 
     Serial.printf("Buffer size: exp: %0.2f, act:%d --" TEXT_RESET ERASE_EOL, expected_fifoCount, getFifoCount());
-    int bytesRemaining = fifoCount;
+    int bytesRemaining = fifo_count;
 
     Serial.printf("\033[%d;1H\033[0m", row_num);
 
@@ -316,7 +315,7 @@ int dumpFifoBuffer(int row_num) {
     if (doDumpFifoBuffer) {
         int column = 0;
 
-        for (int i = 0; i < fifoCount; i++) {
+        for (int i = 0; i < fifo_count; i++) {
             if (i % 14 == 0 && i > 0) {
                 column++;
                 if (column == 8) {
