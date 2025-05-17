@@ -6,7 +6,6 @@
 #include "imu_spy.h"
 
 RTC_DATA_ATTR uint8_t oldRegs[REG_COUNT]; // Save register values over deep sleep to diff changes size shutdown.
-
 static const char *regNames[REG_COUNT];
 static uint8_t fifoBuffer[1024] = {0};
 static int doDumpFifoBuffer = 0;
@@ -431,14 +430,11 @@ void setup() {
     Serial.setTxBufferSize(16384);
     Serial.begin(SERIAL_BAUD_RATE);
 
-    Serial.print("\033[2J\033[0;1H HELLO!!! "); // Clear screen and move cursor to top left
-    Serial.flush(true);
-    delay(500);
-
     pinMode(GPIO_NUM_34, INPUT_PULLUP);
     setNames();
 
-    Serial.print("\033[2J\033[0;1H"); // Clear screen and move cursor to top left
+    Serial.print("\033[0;1H"); // lear screen and move cursor to top left
+    //Serial.print("\033[2J\033[0;1H"); // Clear screen and move cursor to top left
     Serial.flush();
 
     delay(10); // Allow time for serial / wire background tasks to start
@@ -469,9 +465,7 @@ void init() {
     writeRegister(RA_USER_CTRL, 0x0C); // Reset FIFO and DMP
     writeRegister(RA_USER_CTRL, 0x40); // Set USER_CTRL to enable FIFO
 
-    setSampleRate(SAMPLE_RATE);
-
-
+    setSampleRate(sampleRate);
 }
 
 void setSampleRate(int sample_rate) {
