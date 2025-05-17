@@ -339,9 +339,17 @@ int dumpFifoBuffer(int row_num) {
     return n;
 }
 
+uint32_t next_print_time = 0;
+
 void printRegisters() {
     uint8_t regs[REG_COUNT];
     readRegisters(regs, 0x00, REG_COUNT);
+
+    if (millis() < next_print_time) {
+        return;
+    }
+
+    next_print_time = millis() + 200;
 
     for (int row = 0; row < ROWS_PER_COL; row++) {
         Serial.printf("\033[%d;1H\033[0m", row + 1);
@@ -455,13 +463,14 @@ void init() {
 
     writeRegister(RA_GYRO_CONFIG, 0b00010000); // Configure gyro, DLPF and accel
     writeRegister(RA_ACCEL_CONFIG, 0b00000001); // Configure gyro, DLPF and accel
+    writeRegister(RA_CONFIG, 0b00000001); // Configure DLPF (Digital Low Pass Filter)
+    writeRegister(RA_FIFO_EN, 0b11111000); // Enable specific FIFO features: Temp, XG, YG, ZG, and ACCEL
+
     writeRegister(RA_USER_CTRL, 0x0C); // Reset FIFO and DMP
     writeRegister(RA_USER_CTRL, 0x40); // Set USER_CTRL to enable FIFO
-    writeRegister(RA_CONFIG, 0b00000001); // Configure DLPF (Digital Low Pass Filter)
 
     setSampleRate(SAMPLE_RATE);
 
-    writeRegister(RA_FIFO_EN, 0b11111000); // Enable specific FIFO features: Temp, XG, YG, ZG, and ACCEL
 
 }
 
@@ -561,9 +570,13 @@ void handleCommand() {
             int sample_rate_index = -1;
             for (int i = 0; i < sizeof(sampleRates) / sizeof(sampleRates[0]); i++) {
                 if (sampleRates[i] == new_sample_rate) {
-                    sample_rate_index = i;
                     setSampleRate(new_sample_rate);
+                    sample_rate_index = i;
+                    break;;
                 }
+            }
+            if (sample_rate_index == -1) {
+                Serial.println("Invalid sample rate");
             }
             return;
         }
